@@ -13,6 +13,7 @@ func main() {
 	defer engine.Close()
 
 	engine.AddScene("title", &scenes.Title{})
+	engine.AddScene("intro", &scenes.Intro{})
 	engine.SetScene("title")
 	engine.Loop()
 }
