@@ -6,17 +6,24 @@ import (
 	termbox "github.com/nsf/termbox-go"
 )
 
+const (
+	// BoxModeOpaque cause boxes to overwrite characters below spaces
+	BoxModeOpaque = iota
+	// BoxModeTransparent cause boxes to not output spaces over other characters
+	BoxModeTransparent
+)
+
 // Box is a box of terminal cells that can be rendered at an offset
 type Box struct {
-	X, Y int
+	X, Y, W, H int
+	Mode       int
 
-	W, H  int
 	cells [][]termbox.Cell
 }
 
 // NewBoxFromString builds a new Box from a multiline string
 func NewBoxFromString(s string, fg, bg termbox.Attribute) *Box {
-	box := &Box{}
+	box := &Box{Mode: BoxModeOpaque}
 	lines := strings.Split(s, "\n")
 	box.cells = make([][]termbox.Cell, len(lines))
 	for _, line := range lines {
@@ -59,13 +66,41 @@ func (b *Box) VCenter() {
 
 // Render renders the box to the terminal at its specified position
 func (b *Box) Render() error {
+	sw, sh := termbox.Size()
 	for y := 0; y < b.H; y++ {
 		for x := 0; x < b.W; x++ {
 			if x < len(b.cells[y]) {
-				termbox.SetCell(b.X+x, b.Y+y, b.cells[y][x].Ch, b.cells[y][x].Fg, b.cells[y][x].Bg)
+				if b.Mode == BoxModeOpaque || b.cells[y][x].Ch != rune(' ') {
+					posX := b.X + x
+					posY := b.Y + y
+					if posX >= 0 && posY >= 0 && posX <= sw && posY <= sh {
+						termbox.SetCell(b.X+x, b.Y+y, b.cells[y][x].Ch, b.cells[y][x].Fg, b.cells[y][x].Bg)
+					}
+				}
 			}
 		}
 	}
 
 	return nil
+}
+
+// SetCell sets a cell within the box
+func (b *Box) SetCell(x, y int, chr rune, fg, bg termbox.Attribute) {
+	if len(b.cells) < y {
+		newCells := make([][]termbox.Cell, y)
+		copy(newCells, b.cells)
+		b.cells = newCells
+		b.H = y + 1
+	}
+	if len(b.cells[y]) < x {
+		newLine := make([]termbox.Cell, x)
+		copy(newLine, b.cells[y])
+		b.cells[y] = newLine
+		b.W = x + 1
+	}
+	b.cells[y][x] = termbox.Cell{
+		Ch: chr,
+		Fg: fg,
+		Bg: bg,
+	}
 }

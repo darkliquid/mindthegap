@@ -3,4 +3,4 @@
 package engine
 
 // Log is a no-op
-func Log(str string) {}
+func Log(str ...interface{}) {}

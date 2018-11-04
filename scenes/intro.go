@@ -53,10 +53,7 @@ func (i *Intro) Render(delta float64) error {
 	ib.HCenter()
 	ib.VCenter()
 
-	if i.cursor == 0 {
-		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-		i.cursor++
-	} else if i.cursor < len(introTxt) {
+	if i.cursor < len(introTxt) {
 		i.cursor++
 	} else {
 		button := engine.NewBoxFromString("Press enter to continue", termbox.ColorBlack, termbox.ColorGreen)
@@ -67,6 +64,26 @@ func (i *Intro) Render(delta float64) error {
 
 	ib.Render()
 
+	return nil
+}
+
+// Event handles input events
+func (i *Intro) Event(ev termbox.Event) error {
+	switch ev.Type {
+	case termbox.EventKey:
+		switch ev.Key {
+		case termbox.KeyEnter:
+			if i.cursor < len(introTxt) {
+				i.cursor += width
+				if i.cursor > len(introTxt) {
+					i.cursor = len(introTxt)
+				}
+				return nil
+			}
+			termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+			return engine.SetScene("map")
+		}
+	}
 	return nil
 }
 

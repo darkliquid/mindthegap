@@ -14,6 +14,7 @@ func main() {
 
 	engine.AddScene("title", &scenes.Title{})
 	engine.AddScene("intro", &scenes.Intro{})
+	engine.AddScene("map", scenes.NewMap())
 	engine.SetScene("title")
-	engine.Loop()
+	engine.Log(engine.Loop())
 }

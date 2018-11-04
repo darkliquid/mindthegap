@@ -98,6 +98,7 @@ func (title *Title) Event(ev termbox.Event) error {
 		case termbox.KeyEnter:
 			switch title.selectedOption {
 			case TitleNewGame:
+				termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 				return engine.SetScene("intro")
 			case TitleExit:
 				engine.Exit(nil)

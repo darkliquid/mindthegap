@@ -12,6 +12,6 @@ func init() {
 }
 
 // Log logs output using the standard logger
-func Log(str string) {
-	log.Print(str)
+func Log(str ...interface{}) {
+	log.Print(str...)
 }
