@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/darkliquid/mindthegap/engine"
+	"github.com/darkliquid/mindthegap/state"
 	"github.com/darkliquid/mindthegap/world"
 	termbox "github.com/nsf/termbox-go"
 )
@@ -11,23 +12,17 @@ import (
 // Map represents the world map and travel screen
 type Map struct {
 	lineState   []bool
-	playerPos   world.Coord
-	currentLine *world.Line
 	blink       float64
 	showStatus  bool
 	travelMode  bool
 	travelIndex int
-	lastStation *world.Station
 }
 
 // NewMap returns an initialised Map scene
 func NewMap() *Map {
 	return &Map{
-		lineState:   []bool{true, true, true, true, true},
-		currentLine: world.Lines[0],
-		playerPos:   world.StationsByName["Livewire"].Pos,
-		showStatus:  true,
-		lastStation: world.StationsByName["Livewire"],
+		lineState:  []bool{true, true, true, true, true},
+		showStatus: true,
 	}
 }
 
@@ -36,15 +31,15 @@ func (m *Map) renderPlayerPos(delta float64) error {
 	m.blink += delta
 	sw, _ := termbox.Size()
 	cells := termbox.CellBuffer()
-	pX := m.playerPos.X()
-	pY := m.playerPos.Y()
+	pX := state.World.PlayerPos.X()
+	pY := state.World.PlayerPos.Y()
 	playerCell := cells[pX+pY*sw]
 	if m.blink > 1 {
 		m.blink = 0
 	} else if m.blink > 0.5 {
-		termbox.SetCell(pX, pY, playerCell.Ch, termbox.ColorBlack|termbox.AttrBold, m.currentLine.Color)
+		termbox.SetCell(pX, pY, playerCell.Ch, termbox.ColorBlack|termbox.AttrBold, state.World.CurrentLine.Color)
 	} else if m.blink > 0 {
-		termbox.SetCell(pX, pY, playerCell.Ch, m.currentLine.Color|termbox.AttrBold, termbox.ColorBlack)
+		termbox.SetCell(pX, pY, playerCell.Ch, state.World.CurrentLine.Color|termbox.AttrBold, termbox.ColorBlack)
 	}
 	return nil
 }
@@ -61,27 +56,24 @@ func (m *Map) renderStatusLine(msg string) error {
 
 // renderTravel highlights the path to the selected destination
 func (m *Map) renderTravel() error {
-	if m.travelIndex >= len(m.lastStation.Next[m.currentLine]) {
-		m.travelIndex = 0
-	}
 	cells := termbox.CellBuffer()
-	to := m.lastStation.Next[m.currentLine][m.travelIndex].To.Pos
+	to := state.World.CurrentSegment.To.Pos
 	sw, _ := termbox.Size()
 	toCell := cells[to.X()+to.Y()*sw]
 	if m.blink > 0.5 {
-		termbox.SetCell(to.X(), to.Y(), toCell.Ch, termbox.ColorBlack|termbox.AttrBold, m.currentLine.Color)
+		termbox.SetCell(to.X(), to.Y(), toCell.Ch, termbox.ColorBlack|termbox.AttrBold, state.World.CurrentLine.Color)
 	} else if m.blink > 0 {
-		termbox.SetCell(to.X(), to.Y(), toCell.Ch, m.currentLine.Color|termbox.AttrBold, termbox.ColorBlack)
+		termbox.SetCell(to.X(), to.Y(), toCell.Ch, state.World.CurrentLine.Color|termbox.AttrBold, termbox.ColorBlack)
 	}
-	for _, coord := range m.lastStation.Next[m.currentLine][m.travelIndex].Path {
+	for _, coord := range state.World.CurrentSegment.Path {
 		if m.blink > 0.5 {
-			termbox.SetCell(coord.X(), coord.Y(), '█', m.currentLine.Color, termbox.ColorBlack)
+			termbox.SetCell(coord.X(), coord.Y(), '█', state.World.CurrentLine.Color, termbox.ColorBlack)
 		} else if m.blink > 0 {
-			termbox.SetCell(coord.X(), coord.Y(), '▒', m.currentLine.Color, termbox.ColorBlack)
+			termbox.SetCell(coord.X(), coord.Y(), '▒', state.World.CurrentLine.Color, termbox.ColorBlack)
 		}
 	}
 
-	m.renderStatusLine(fmt.Sprintf("│ Travel to %v │", m.lastStation.Next[m.currentLine][m.travelIndex].To.Name))
+	m.renderStatusLine(fmt.Sprintf("│ Travel to %v │", state.World.CurrentSegment.To.Name))
 	return nil
 }
 
@@ -92,7 +84,7 @@ func (m *Map) Render(delta float64) error {
 			wm.Render()
 		}
 	}
-	if err := m.currentLine.Render(); err != nil {
+	if err := state.World.CurrentLine.Render(); err != nil {
 		return err
 	}
 
@@ -101,8 +93,8 @@ func (m *Map) Render(delta float64) error {
 			return err
 		}
 	} else if m.showStatus {
-		status := fmt.Sprintf("│ Line: %v │", m.currentLine.Name)
-		if station, ok := world.StationsByCoord[m.playerPos]; ok {
+		status := fmt.Sprintf("│ Line: %v │", state.World.CurrentLine.Name)
+		if station, ok := world.StationsByCoord[state.World.PlayerPos]; ok {
 			status += fmt.Sprintf(" Station: %v │", station.Name)
 		}
 		if err := m.renderStatusLine(status); err != nil {
@@ -124,15 +116,18 @@ func (m *Map) Event(ev termbox.Event) error {
 		case termbox.KeyArrowLeft:
 			m.travelIndex--
 			if m.travelIndex < 0 {
-				m.travelIndex = len(m.lastStation.Next[m.currentLine]) - 1
+				m.travelIndex = len(state.World.CurrentSegment.From.Next[state.World.CurrentLine]) - 1
 			}
+			state.World.CurrentSegment = state.World.CurrentSegment.From.Next[state.World.CurrentLine][m.travelIndex]
 		case termbox.KeyArrowRight, termbox.KeyTab:
 			m.travelIndex++
-			if m.travelIndex > len(m.lastStation.Next[m.currentLine])-1 {
+			if m.travelIndex > len(state.World.CurrentSegment.From.Next[state.World.CurrentLine])-1 {
 				m.travelIndex = 0
 			}
+			state.World.CurrentSegment = state.World.CurrentSegment.From.Next[state.World.CurrentLine][m.travelIndex]
 		case termbox.KeyEnter:
-			// TODO: Begin travel to selected destination
+			termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+			return engine.SetScene("travel")
 		}
 	}
 	switch ev.Type {
@@ -156,10 +151,10 @@ func (m *Map) Event(ev termbox.Event) error {
 			termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 		// Change current line (only at stations)
 		case 'c', 'C':
-			if station, ok := world.StationsByCoord[m.playerPos]; ok {
+			if station, ok := world.StationsByCoord[state.World.PlayerPos]; ok {
 				newLineIdx := 0
 				for i, line := range station.Lines {
-					if m.currentLine == line {
+					if state.World.CurrentLine == line {
 						newLineIdx = i + 1
 						if newLineIdx >= len(station.Lines) {
 							newLineIdx = 0
@@ -167,7 +162,12 @@ func (m *Map) Event(ev termbox.Event) error {
 						break
 					}
 				}
-				m.currentLine = station.Lines[newLineIdx]
+				state.World.CurrentLine = station.Lines[newLineIdx]
+				next := state.World.CurrentSegment.From.Next[state.World.CurrentLine]
+				if m.travelIndex > len(next)-1 {
+					m.travelIndex = 0
+				}
+				state.World.CurrentSegment = next[m.travelIndex]
 			}
 		// Toggle status line
 		case 's':

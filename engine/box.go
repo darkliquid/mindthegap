@@ -115,3 +115,35 @@ func (b *Box) GetCell(x, y int) *termbox.Cell {
 	}
 	return &b.cells[y][x]
 }
+
+// HCycle cycles the box horizontally, wrapping the 'image'
+func (b *Box) HCycle(offset int) {
+	if offset == 0 || offset > b.W || offset < 0-b.W {
+		return
+	}
+
+	if offset < 0 {
+		offset = b.W + offset
+	}
+
+	for y, row := range b.cells {
+		b.cells[y] = append(row[offset:], row[:offset]...)
+	}
+}
+
+// HRepeat repeats the box content horizonally until width is reached
+func (b *Box) HRepeat(width int) {
+	b.W = width
+	for y, row := range b.cells {
+		target := width
+		for {
+			if target > len(row) {
+				b.cells[y] = append(b.cells[y], row...)
+				target -= len(row)
+			} else {
+				b.cells[y] = append(b.cells[y], row[:target]...)
+				break
+			}
+		}
+	}
+}

@@ -44,6 +44,8 @@ func handleInput(ch chan termbox.Event) {
 		case termbox.EventError, termbox.EventInterrupt:
 			Exit(ev.Err)
 			return
+		case termbox.EventResize:
+			termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 		}
 	}
 }

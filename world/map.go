@@ -1,6 +1,7 @@
 package world
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -25,7 +26,7 @@ var rawLines = []string{`
          ▒             ▒      ▒
           B▒▒▒▒▒▒▒    ▒        ▒            ▒▒▒▒
                   C▒▒▒          E▒▒▒▒▒▒▒▒▒▒▒    F
-                                             ▒▒
+                                             ▒▒▒
                                           ▒▒▒
                                        ▒G▒
                                      ▒▒
@@ -40,7 +41,7 @@ var rawLines = []string{`
                K▒               ▒
               ▒  ▒              ▒
               ▒  ▒             I
-              ▒    ▒     ▒▒▒▒▒▒
+              ▒   ▒▒     ▒▒▒▒▒▒
              ▒      ▒▒▒▒J
             ▒
          ▒▒L
@@ -506,6 +507,12 @@ func FindSegments(current *Station, line *Line) []*Segment {
 					done = true
 				}
 			}
+		}
+
+		if segment.To == nil {
+			// All segments should have Froms and Tos, so if not, the map is at fault
+			// and needs fixing
+			panic(fmt.Sprint(line.Name, segment.From.Name, segment.Path))
 		}
 	}
 
