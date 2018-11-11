@@ -104,3 +104,14 @@ func (b *Box) SetCell(x, y int, chr rune, fg, bg termbox.Attribute) {
 		Bg: bg,
 	}
 }
+
+// GetCell gets a cell within the box
+func (b *Box) GetCell(x, y int) *termbox.Cell {
+	if y < 0 || y >= len(b.cells) {
+		return nil
+	}
+	if x < 0 || x >= len(b.cells[y]) {
+		return nil
+	}
+	return &b.cells[y][x]
+}

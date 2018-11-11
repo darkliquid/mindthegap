@@ -9,17 +9,17 @@ import (
 	termbox "github.com/nsf/termbox-go"
 )
 
-// rawMaps represent the world map
+// rawLines represent all the line in the world
 //
 // Each set of 50 lines is a different subway line.
 // Numbers represent colours, letters represent the
 // different stations that can be stopped at or used
 // to switch line.
-var rawMaps = []string{`
+var rawLines = []string{`
 
 
 
-▒▒▒A▒▒▒
+   A▒▒▒
        ▒                 D▒▒▒
         ▒               ▒    ▒
          ▒             ▒      ▒
@@ -29,7 +29,7 @@ var rawMaps = []string{`
                                           ▒▒▒
                                        ▒G▒
                                      ▒▒
-                                   ▒▒
+                                    ▒
                                    ▒
                                    ▒
                                    H
@@ -38,9 +38,9 @@ var rawMaps = []string{`
                                 ▒
                                 ▒
                K▒               ▒
-               ▒ ▒              ▒
-               ▒  ▒             I
-              ▒    ▒     ▒▒▒▒▒▒▒
+              ▒  ▒              ▒
+              ▒  ▒             I
+              ▒    ▒     ▒▒▒▒▒▒
              ▒      ▒▒▒▒J
             ▒
          ▒▒L
@@ -50,7 +50,7 @@ var rawMaps = []string{`
      M
       ▒
        ▒
-        ▒▒▒▒▒▒N▒▒▒
+        ▒▒▒▒▒▒N
 
 
 
@@ -85,13 +85,13 @@ var rawMaps = []string{`
 
                                   ▒H
                    T▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ▒
-                  ▒                 ▒
-                 ▒                  ▒
-                ▒                   ▒
-              ▒K                   ▒
-             ▒                    ▒
-            ▒             ▒▒▒▒▒▒I▒
-           ▒             ▒
+                  ▒                ▒
+                 ▒                ▒
+                ▒                ▒
+              ▒K                 ▒
+             ▒                  ▒
+            ▒                  I
+           ▒             ▒▒▒▒▒▒
            ▒            J
            ▒           ▒
            L          ▒
@@ -102,7 +102,7 @@ var rawMaps = []string{`
    ▒                 ▒
   ▒                   ▒
  ▒        ▒▒▒▒N        ▒
-▒        ▒     ▒        ▒
+▒        ▒     ▒        ▒▒
 ▒        ▒     ▒          R
 O ▒▒▒▒▒▒▒      ▒           ▒▒▒▒▒▒▒▒▒
  ▒             ▒                    Q
@@ -125,13 +125,13 @@ O ▒▒▒▒▒▒▒      ▒           ▒▒▒▒▒▒▒▒▒
                                                     ▒      ▒
                                                    ▒      ▒
                                                   ▒      ▒
-                            ▒▒▒▒E               F▒      g
-                           ▒     ▒           ▒▒▒       ▒
-                          ▒      ▒        ▒▒▒         ▒
-                         ▒        ▒▒▒▒▒▒G▒           ▒
-                        U                           ▒
-                        ▒                          ▒
-                     ▒▒▒                          ▒
+                             ▒▒▒E               F▒      g
+                            ▒    ▒           ▒▒▒       ▒
+                           ▒     ▒        ▒▒▒         ▒
+                          ▒       ▒▒▒▒▒▒G▒           ▒
+                        U▒                          ▒
+                       ▒                           ▒
+                     ▒▒                           ▒
                    ▒▒               ▒▒▒▒         ▒
                   ▒                H    ▒       f
                    T▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒      ▒       ▒
@@ -271,10 +271,10 @@ O ▒▒▒▒▒▒▒      ▒           ▒▒▒▒▒▒▒▒▒
 
 `}
 
-// mapNames are the names of each subway line
-var mapNames = []string{"Livewire", "Spanner", "Neck", "Jug", "Soot & Glass"}
+// LineNames are the names of each subway line
+var LineNames = []string{"Livewire", "Spanner", "Neck", "Jug", "Soot & Glass"}
 
-// stationNames map station map codes to full names
+// stationNames map station line codes to full names
 var stationNames = map[rune]string{
 	'A': "Fuse",
 	'B': "Waterloo",
@@ -325,12 +325,47 @@ var stationNames = map[rune]string{
 // Station represents a train station
 type Station struct {
 	Name  string
-	X, Y  int
-	Lines []bool
+	Code  rune
+	Pos   Coord
+	Lines []*Line
+	Next  map[*Line][]*Segment
 }
 
-// Stations maps co-ordinates to station reference
-var Stations map[[2]int]*Station
+// Segment represents the path between two stations
+type Segment struct {
+	Path []Coord
+	From *Station
+	To   *Station
+}
+
+// Coord is an X/Y coordinate
+type Coord [2]int
+
+// X is the X coordinate
+func (c Coord) X() int {
+	return c[0]
+}
+
+// Y is the Y coordinate
+func (c Coord) Y() int {
+	return c[1]
+}
+
+// Equal tests coord equality
+func (c Coord) Equal(c2 Coord) bool {
+	return c.X() == c2.X() && c.Y() == c2.Y()
+}
+
+// NewCoord returns a Coord
+func NewCoord(x, y int) Coord {
+	return Coord([2]int{x, y})
+}
+
+// StationsByCoord Lines co-ordinates to station reference
+var StationsByCoord map[Coord]*Station
+
+// StationsByName Lines names to station reference
+var StationsByName map[string]*Station
 
 var lineColours = []termbox.Attribute{
 	termbox.ColorYellow,
@@ -340,42 +375,139 @@ var lineColours = []termbox.Attribute{
 	termbox.ColorMagenta,
 }
 
-// Map is a named map
-type Map struct {
-	Name string
+// Line is a named Line
+type Line struct {
+	Name  string
+	Color termbox.Attribute
 	*engine.Box
 }
 
-// Maps is the array of all maps in the game
-var Maps []*Map
+// Lines is the array of all Lines in the game
+var Lines []*Line
 
-// Since maps are complicated and contain a bunch of info, first we extract it and cache
+var re = regexp.MustCompile("[a-zA-Z]")
+
+// Since Lines are complicated and contain a bunch of info, first we extract it and cache
 // it as doing it every time is a pain
 func init() {
-	Maps = make([]*Map, len(rawMaps))
-	Stations = make(map[[2]int]*Station)
-	re := regexp.MustCompile("[a-zA-Z]")
+	Lines = make([]*Line, len(rawLines))
+	StationsByCoord = make(map[Coord]*Station)
+	StationsByName = make(map[string]*Station)
 
-	// Process the raw map data
-	for i, m := range rawMaps {
+	// Process the raw Line data
+	for i, m := range rawLines {
 		b := engine.NewBoxFromString(m, lineColours[i], termbox.ColorDefault)
 		b.Mode = engine.BoxModeTransparent
-		Maps[i] = &Map{Name: mapNames[i], Box: b}
+		Lines[i] = &Line{Name: LineNames[i], Box: b, Color: lineColours[i]}
 		lines := strings.Split(m, "\n")
 		for y, line := range lines {
 			indexes := re.FindAllStringIndex(line, -1)
 			for _, index := range indexes {
 				runeOffset := utf8.RuneCountInString(line[:index[0]])
 				stationCode := rune(line[index[0]])
-				if _, ok := Stations[[2]int{runeOffset, y}]; !ok {
-					Stations[[2]int{runeOffset, y}] = &Station{Lines: make([]bool, len(rawMaps))}
+				coord := NewCoord(runeOffset, y)
+				if _, ok := StationsByCoord[coord]; !ok {
+					StationsByCoord[coord] = &Station{Lines: make([]*Line, 0), Next: make(map[*Line][]*Segment)}
+					StationsByName[stationNames[stationCode]] = StationsByCoord[coord]
 				}
-				Stations[[2]int{runeOffset, y}].Name = stationNames[stationCode]
-				Stations[[2]int{runeOffset, y}].X = runeOffset
-				Stations[[2]int{runeOffset, y}].Y = y
-				Stations[[2]int{runeOffset, y}].Lines[i] = true
+				StationsByCoord[coord].Name = stationNames[stationCode]
+				StationsByCoord[coord].Code = stationCode
+				StationsByCoord[coord].Pos = coord
+				StationsByCoord[coord].Lines = append(StationsByCoord[coord].Lines, Lines[i])
 				b.SetCell(runeOffset, y, stationCode, termbox.ColorBlack|termbox.AttrBold, lineColours[i])
 			}
 		}
 	}
+
+	// Build next/prev mappings
+	for _, station := range StationsByCoord {
+		for _, line := range station.Lines {
+			station.Next[line] = FindSegments(station, line)
+		}
+	}
+}
+
+// FindSegments scans the line for the adjacent stations
+func FindSegments(current *Station, line *Line) []*Segment {
+	x, y := current.Pos.X(), current.Pos.Y()
+
+	dirs := []Coord{{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}}
+
+	s := make([]*Segment, 0)
+	for _, dir := range dirs {
+		newCoord := NewCoord(x+dir.X(), y+dir.Y())
+		cell := line.GetCell(newCoord.X(), newCoord.Y())
+		if cell == nil {
+			continue
+		}
+		if cell.Ch == rune('▒') {
+			s = append(s, &Segment{
+				From: current,
+				Path: []Coord{newCoord},
+			})
+		}
+
+		if re.MatchString(string(cell.Ch)) {
+			s = append(s, &Segment{
+				From: current,
+				To:   StationsByCoord[newCoord],
+			})
+		}
+	}
+
+	for _, segment := range s {
+		done := false
+		if segment.To != nil {
+			continue
+		}
+		last := segment.Path[0]
+		for !done {
+			for i, dir := range dirs {
+				newCoord := NewCoord(last.X()+dir.X(), last.Y()+dir.Y())
+				if newCoord.Equal(segment.From.Pos) {
+					segment.Path = segment.Path[:1]
+					if i == len(dirs)-1 {
+						done = true
+					}
+					continue
+				}
+
+				if len(segment.Path) > 1 {
+					if newCoord.Equal(segment.Path[len(segment.Path)-2]) {
+						if i == len(dirs)-1 {
+							done = true
+						}
+						continue
+					}
+				}
+
+				cell := line.GetCell(newCoord.X(), newCoord.Y())
+				if cell == nil {
+					if i == len(dirs)-1 {
+						done = true
+					}
+					continue
+				}
+
+				if cell.Ch == rune('▒') {
+					segment.Path = append(segment.Path, newCoord)
+					last = newCoord
+					break
+				}
+
+				if re.MatchString(string(cell.Ch)) {
+					segment.To = StationsByCoord[newCoord]
+					done = true
+					last = segment.From.Pos
+					break
+				}
+
+				if i == len(dirs)-1 {
+					done = true
+				}
+			}
+		}
+	}
+
+	return s
 }
